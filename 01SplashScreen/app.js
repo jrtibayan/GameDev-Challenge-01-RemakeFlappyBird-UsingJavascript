@@ -21,7 +21,7 @@ if(canvasWidth >= 500) {
 // create an image element which will be the source of all the images needed for the project
 
 var images = document.createElement("img");
-images.src = "img/sheet.png";
+images.src = "../img/sheet.png";
 
 
 //*******************************************************************************************************************************
