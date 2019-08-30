@@ -48,6 +48,35 @@ var Vec = class Vec {
 
 
 //*******************************************************************************************************************************
+// floor
+
+var Floor = class Floor {
+    constructor(pos) {
+        this.pos = pos;
+    }
+}
+
+Floor.prototype.srcImage = images;
+Floor.prototype.posOnSrc = new Vec(276, 0);
+Floor.prototype.sizeOnSrc = new Vec(224, 14);
+Floor.prototype.size = new Vec(224, 14);
+Floor.prototype.speed = new Vec(-60, 0);
+Floor.prototype.resetPos = new Vec(447, canvasHeight - 112);
+
+Floor.prototype.getType = function() {
+    return "floor";
+}
+
+Floor.prototype.update = function(time) {
+    let newPos = this.pos.plus(this.speed.times(time));
+
+    if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+
+    return new Floor(newPos);
+}
+
+
+//*******************************************************************************************************************************
 // the state class will contain the status of the game and the list of actors used by the game
 
 var State = class State {
@@ -63,6 +92,19 @@ var State = class State {
     }
 
 }
+
+
+State.prototype.update = function(time) {
+    
+    let backgrounds = this.backgrounds.map(background => {
+        if(background.getType()=="floor") background = background.update(time);
+        return background;
+    });
+
+    let newState = new State(this.status, backgrounds, this.actors);
+
+    return newState;
+};
 
 
 //*******************************************************************************************************************************
@@ -133,6 +175,10 @@ var Actor = class Actor {
     }
 }
 
+Actor.prototype.getType = function() {
+    return "actor";
+}
+
 Actor.prototype.size = new Vec(1, 1);
 
 
@@ -174,27 +220,30 @@ function runGame(Display) {
     let display = new Display(document.body);
     state = State.start();
     window.addEventListener("mousedown", onpress);
+
+    let background1 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(0, canvasHeight - 232), new Vec(275, 120));
+    let background2 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(275, canvasHeight - 232), new Vec(275, 120));
+    let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98));
+    let floor1 = new Floor(new Vec(0, canvasHeight - 112));
+    let floor2 = new Floor(new Vec(224, canvasHeight - 112));
+    let floor3 = new Floor(new Vec(448, canvasHeight - 112));
+    let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
+    let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
+    let player = new Actor(images, new Vec(312, 230), new Vec(34, 24), new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12), new Vec(34, 24));
+            
+    state.backgrounds.push(background1);
+    state.backgrounds.push(background2);
+    state.backgrounds.push(ground);
+    state.backgrounds.push(floor1);
+    state.backgrounds.push(floor2);
+    state.backgrounds.push(floor3);
+    state.backgrounds.push(getReady);
+    state.backgrounds.push(instruction);
+    state.actors.push(player);
     
     runAnimation(time => {
-        let background1 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(0, canvasHeight - 232), new Vec(275, 120));
-        let background2 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(275, canvasHeight - 232), new Vec(275, 120));
-        let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98));
-        let floor1 = new Actor(images, new Vec(276, 0), new Vec(224, 14), new Vec(0, canvasHeight - 112), new Vec(224, 14));
-        let floor2 = new Actor(images, new Vec(276, 0), new Vec(224, 14), new Vec(224, canvasHeight - 112), new Vec(224, 14));
-        let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
-        let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
-        let player = new Actor(images, new Vec(312, 230), new Vec(34, 24), new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12), new Vec(34, 24));
-             
-        state.backgrounds.push(background1);
-        state.backgrounds.push(background2);
-        state.backgrounds.push(ground);
-        state.backgrounds.push(floor1);
-        state.backgrounds.push(floor2);
-        state.backgrounds.push(getReady);
-        state.backgrounds.push(instruction);
-
-        state.actors.push(player);
-
+    
+        state = state.update(time);
         display.syncState(state);
         
     });
