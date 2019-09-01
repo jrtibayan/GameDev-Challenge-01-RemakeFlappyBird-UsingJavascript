@@ -77,6 +77,35 @@ Floor.prototype.update = function(time) {
 
 
 //*******************************************************************************************************************************
+// city
+
+var City = class City {
+    constructor(pos) {
+        this.pos = pos;
+    }
+}
+
+City.prototype.srcImage = images;
+City.prototype.posOnSrc = new Vec(0, 0);
+City.prototype.sizeOnSrc = new Vec(275, 120);
+City.prototype.size = new Vec(275, 120);
+City.prototype.speed = new Vec(-10, 0);
+City.prototype.resetPos = new Vec(549, canvasHeight - 232);
+
+City.prototype.getType = function() {
+    return "city";
+}
+
+City.prototype.update = function(time) {
+    let newPos = this.pos.plus(this.speed.times(time));
+
+    if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+
+    return new City(newPos);
+}
+
+
+//*******************************************************************************************************************************
 // the state class will contain the status of the game and the list of actors used by the game
 
 var State = class State {
@@ -97,7 +126,7 @@ var State = class State {
 State.prototype.update = function(time) {
     
     let backgrounds = this.backgrounds.map(background => {
-        if(background.getType()=="floor") background = background.update(time);
+        if(["floor", "city"].includes(background.getType())) background = background.update(time);
         return background;
     });
 
@@ -221,8 +250,9 @@ function runGame(Display) {
     state = State.start();
     window.addEventListener("mousedown", onpress);
 
-    let background1 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(0, canvasHeight - 232), new Vec(275, 120));
-    let background2 = new Actor(images, new Vec(0, 0), new Vec(275, 120), new Vec(275, canvasHeight - 232), new Vec(275, 120));
+    let city1 = new City(new Vec(0, canvasHeight - 232));
+    let city2 = new City(new Vec(275, canvasHeight - 232));
+    let city3 = new City(new Vec(550, canvasHeight - 232));
     let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98));
     let floor1 = new Floor(new Vec(0, canvasHeight - 112));
     let floor2 = new Floor(new Vec(224, canvasHeight - 112));
@@ -231,8 +261,9 @@ function runGame(Display) {
     let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
     let player = new Actor(images, new Vec(312, 230), new Vec(34, 24), new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12), new Vec(34, 24));
             
-    state.backgrounds.push(background1);
-    state.backgrounds.push(background2);
+    state.backgrounds.push(city1);
+    state.backgrounds.push(city2);
+    state.backgrounds.push(city3);
     state.backgrounds.push(ground);
     state.backgrounds.push(floor1);
     state.backgrounds.push(floor2);
