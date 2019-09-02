@@ -108,6 +108,42 @@ City.prototype.update = function(time) {
 
 
 //*******************************************************************************************************************************
+// bird/player
+
+var Bird = class Bird {
+    constructor(pos, speed) {
+        this.pos = pos;
+        this.speed = speed;
+    }
+    static create(pos) {
+        return new Bird(pos, new Vec(0, 0));
+    }
+}
+
+Bird.prototype.srcImage = images;
+Bird.prototype.posOnSrc = new Vec(312, 230);
+Bird.prototype.sizeOnSrc = new Vec(34, 24);
+Bird.prototype.size = new Vec(34, 24);
+Bird.prototype.gravity = new Vec(0, 0.25);
+
+Bird.prototype.getType = function() {
+    return "bird";
+}
+
+Bird.prototype.update = function(time) {
+    let pos = this.pos;
+    let speed = this.speed;
+    
+    if(state.status == "game") {
+        speed = speed.plus(this.gravity);
+        pos = pos.plus(speed)
+    }
+    
+    return new Bird(pos, speed);
+}
+
+
+//*******************************************************************************************************************************
 // the state class will contain the status of the game and the list of actors used by the game
 
 var State = class State {
@@ -126,13 +162,17 @@ var State = class State {
 
 
 State.prototype.update = function(time) {
-    
     let backgrounds = this.backgrounds.map(background => {
         if(["floor", "city"].includes(background.getType())) background = background.update(time);
         return background;
     });
 
-    let newState = new State(this.status, backgrounds, this.actors);
+    let actors = this.actors.map(actor => {
+        if(["bird"].includes(actor.getType())) actor = actor.update(time);
+        return actor;
+    });
+
+    let newState = new State(this.status, backgrounds, actors);
 
     return newState;
 };
@@ -233,10 +273,10 @@ function runAnimation(frameFunc) {
 function onpress(event) {
     switch(state.status) {
         case "splash":
-            state = new State("game", state.backgrounds, state.actors);
+                state = new State("game", state.backgrounds, state.actors);
         break;
         case "game":
-            state = new State("score", state.backgrounds, state.actors);
+            state = new State(state.status, state.backgrounds, state.actors);
         break;
         case "score":
             state = new State("splash", state.backgrounds, state.actors);
@@ -261,8 +301,8 @@ function runGame(Display) {
     let floor3 = new Floor(new Vec(448, canvasHeight - 112));
     let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
     let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
-    let player = new Actor(images, new Vec(312, 230), new Vec(34, 24), new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12), new Vec(34, 24));
-            
+    let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
+
     state.backgrounds.push(city1);
     state.backgrounds.push(city2);
     state.backgrounds.push(city3);
