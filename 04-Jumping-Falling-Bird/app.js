@@ -22,6 +22,12 @@ if(canvasWidth >= 500) {
 
 
 //*******************************************************************************************************************************
+// other important global vars
+var state = null, 
+    clicked = false;
+
+
+//*******************************************************************************************************************************
 // create an image element which will be the source of all the images needed for the project
 
 var images = document.createElement("img");
@@ -124,10 +130,15 @@ Bird.prototype.srcImage = images;
 Bird.prototype.posOnSrc = new Vec(312, 230);
 Bird.prototype.sizeOnSrc = new Vec(34, 24);
 Bird.prototype.size = new Vec(34, 24);
-Bird.prototype.gravity = new Vec(0, 0.25);
+Bird.prototype.gravity = new Vec(0, 15);
+Bird.prototype.jumpSpeed = new Vec(0, -276);
 
 Bird.prototype.getType = function() {
     return "bird";
+}
+
+Bird.prototype.jump = function() {
+    return this.jumpSpeed;
 }
 
 Bird.prototype.update = function(time) {
@@ -135,8 +146,12 @@ Bird.prototype.update = function(time) {
     let speed = this.speed;
     
     if(state.status == "game") {
+        if(clicked) {
+            speed = this.jump();
+            clicked = false;
+        } 
         speed = speed.plus(this.gravity);
-        pos = pos.plus(speed)
+        pos = pos.plus(speed.times(time))
     }
     
     return new Bird(pos, speed);
@@ -254,7 +269,7 @@ Actor.prototype.size = new Vec(1, 1);
 
 
 //*******************************************************************************************************************************
-// the Actor class. for now I will be using this for all ingame objects and will separate them later on if there is a need to separate them
+// other important functions
 
 function runAnimation(frameFunc) {
     let lastTime = null;
@@ -269,13 +284,13 @@ function runAnimation(frameFunc) {
     requestAnimationFrame(frame);
 }
 
-
 function onpress(event) {
     switch(state.status) {
         case "splash":
-                state = new State("game", state.backgrounds, state.actors);
+            state = new State("game", state.backgrounds, state.actors);
         break;
         case "game":
+            clicked = true;
             state = new State(state.status, state.backgrounds, state.actors);
         break;
         case "score":
@@ -283,7 +298,6 @@ function onpress(event) {
         break;
     }
 }
-
 
 function runGame(Display) {
     console.log("start");
