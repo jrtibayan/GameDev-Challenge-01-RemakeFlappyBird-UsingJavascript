@@ -7,8 +7,8 @@
  *      4. << DONE >> Scroll background with different speed than road for paralax effect
  *      5. << DONE >> Make bird fall due to gravity
  *      6. << DONE >> Make bird jump
- *      7. Spawn Pipes
- *      8. Scroll Pipes
+ *      7. << DONE >> Spawn Pipes
+ *      8. << DONE >> Scroll Pipes
  */
 
 
@@ -70,7 +70,7 @@ Floor.prototype.srcImage = images;
 Floor.prototype.posOnSrc = new Vec(276, 0);
 Floor.prototype.sizeOnSrc = new Vec(224, 14);
 Floor.prototype.size = new Vec(224, 14);
-Floor.prototype.speed = new Vec(-60, 0);
+Floor.prototype.speed = new Vec(-120, 0);
 Floor.prototype.resetPos = new Vec(447, canvasHeight - 112);
 
 Floor.prototype.getType = function() {
@@ -112,6 +112,82 @@ City.prototype.update = function(time) {
     if(newPos.x + this.size.x < 0) newPos = this.resetPos;
 
     return new City(newPos);
+}
+
+
+//*******************************************************************************************************************************
+// Pipe
+
+var Pipe = class Pipe {
+    constructor(pos) {
+        this.pos = pos;
+    }
+}
+
+Pipe.prototype.speed = new Vec(-120, 0);
+Pipe.prototype.srcImage = images;
+
+Pipe.prototype.posOnSrcBody = new Vec(504, 25);
+Pipe.prototype.sizeOnSrcBody = new Vec(48, 4);
+
+Pipe.prototype.posOnSrcHead = new Vec(502, 0);
+Pipe.prototype.sizeOnSrcHead = new Vec(52, 24);
+
+Pipe.prototype.sizeBody = new Vec(48, 4);
+Pipe.prototype.sizeHead = new Vec(52, 24);
+
+Pipe.prototype.getType = function() {
+    return "pipe";
+}
+
+Pipe.prototype.draw = function(cx) {
+    let pos = this.pos;
+    let openingY = 80;
+
+    let startYHeadTop = pos.y - Math.floor(openingY / 2) - this.sizeHead.y;
+    let startYBodyTop = 0;
+    let heightBodyTop = startYHeadTop - startYBodyTop;
+
+    let startYHeadBottom = pos.y + Math.floor(openingY / 2);
+    let startYBodyBottom = startYHeadBottom + this.sizeHead.y;
+    let heightBodyBottom = canvasHeight - 112 - startYBodyBottom;
+
+    let xOffSetBody = Math.floor(((this.sizeHead.x - this.sizeBody.x) / 2));
+
+    // top body
+    cx.drawImage(
+        this.srcImage,
+        this.posOnSrcBody.x, this.posOnSrcBody.y, this.sizeOnSrcBody.x, this.sizeOnSrcBody.y,
+        pos.x + xOffSetBody, startYBodyTop, this.sizeBody.x, heightBodyTop
+    );
+    // top head
+    cx.save();
+    cx.translate(0, startYHeadTop + (this.sizeHead.y / 2));
+    cx.scale(1, -1);
+    cx.translate(0, -(startYHeadTop + (this.sizeHead.y / 2)));
+    cx.drawImage(
+        this.srcImage,
+        this.posOnSrcHead.x, this.posOnSrcHead.y, this.sizeOnSrcHead.x, this.sizeOnSrcHead.y,
+        pos.x, startYHeadTop, this.sizeHead.x, this.sizeHead.y
+    );
+    cx.restore();
+
+    // bottom body
+    cx.drawImage(
+        this.srcImage,
+        this.posOnSrcBody.x, this.posOnSrcBody.y, this.sizeOnSrcBody.x, this.sizeOnSrcBody.y,
+        pos.x + xOffSetBody, startYBodyBottom, this.sizeBody.x, heightBodyBottom
+    );
+    // bottom head
+    cx.drawImage(
+        this.srcImage,
+        this.posOnSrcHead.x, this.posOnSrcHead.y, this.sizeOnSrcHead.x, this.sizeOnSrcHead.y,
+        pos.x, startYHeadBottom, this.sizeHead.x, this.sizeHead.y
+    );
+}
+
+Pipe.prototype.update = function(time) {
+    return new Pipe(this.pos.plus(this.speed.times(time)));
 }
 
 
@@ -165,31 +241,61 @@ Bird.prototype.update = function(time) {
 
 var State = class State {
 
-    constructor(status, backgrounds, actors) {
+    constructor(status, backgrounds, actors, pipeSpawn) {
         this.status = status;
         this.actors = actors;
         this.backgrounds = backgrounds;
+        this.pipeSpawn = pipeSpawn;
     }  
 
     static start() {
-        return new State("splash", [], []);
+        return new State("splash", [], [], {});
     }
 
 }
 
 
 State.prototype.update = function(time) {
-    let backgrounds = this.backgrounds.map(background => {
+    let pipeSpawn = this.pipeSpawn;
+    let backgrounds = this.backgrounds;
+    let actors = this.actors;
+
+    if(this.status === "game") {
+        pipeSpawn.countDown -= time;
+        if(pipeSpawn.countDown <= 0) {
+            let multiplier = function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(5, 8);
+
+            let direction = (function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(1, 100) % 2 === 0) ? 1 : -1;
+            direction = (state.pipeSpawn.lastY - (multiplier * 15) < 80) ? 1 : direction;
+            direction = (state.pipeSpawn.lastY + (multiplier * 15) > canvasHeight - 112 - 80) ? -1 : direction;
+
+            let addY = multiplier * 15 * direction;
+
+            let newY = state.pipeSpawn.lastY + addY;
+
+            newY = Math.min(newY, canvasHeight - 112 - 80);
+            newY = Math.max(newY, 80);
+
+            let newPipe = new Pipe(new Vec(canvasWidth + 100, newY));
+
+            pipeSpawn.lastY = newY;
+            pipeSpawn.countDown = 1.7;
+
+            actors.push(newPipe);
+        }
+    }
+
+    backgrounds = this.backgrounds.map(background => {
         if(["floor", "city"].includes(background.getType())) background = background.update(time);
         return background;
     });
 
-    let actors = this.actors.map(actor => {
-        if(["bird"].includes(actor.getType())) actor = actor.update(time);
+    actors = this.actors.map(actor => {
+        if(["bird", "pipe"].includes(actor.getType())) actor = actor.update(time);
         return actor;
     });
 
-    let newState = new State(this.status, backgrounds, actors);
+    let newState = new State(this.status, backgrounds, actors, pipeSpawn);
 
     return newState;
 };
@@ -218,11 +324,16 @@ var CanvasDisplay = class CanvasDisplay {
 
 CanvasDisplay.prototype.drawActors = function(actors) {
     for (let actor of actors) {
-        this.cx.drawImage(
-            actor.srcImage,
-            actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
-            actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
-        );
+        if(actor.getType()==="bird") {
+            this.cx.drawImage(
+                actor.srcImage,
+                actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
+                actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
+            );
+        } else {
+            actor.draw(this.cx);
+        }
+        
     }
 };
 
@@ -289,14 +400,18 @@ function runAnimation(frameFunc) {
 function onpress(event) {
     switch(state.status) {
         case "splash":
-            state = new State("game", state.backgrounds, state.actors);
+            let pipeSpawn = state.pipeSpawn;
+            pipeSpawn.countDown = .3;
+            pipeSpawn.lastY = Math.floor((canvasHeight - 112) / 2);
+            clicked = true;
+            state = new State("game", state.backgrounds, state.actors, pipeSpawn);
         break;
         case "game":
             clicked = true;
-            state = new State(state.status, state.backgrounds, state.actors);
+            state = new State(state.status, state.backgrounds, state.actors, state.pipeSpawn);
         break;
         case "score":
-            state = new State("splash", state.backgrounds, state.actors);
+            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn);
         break;
     }
 }
