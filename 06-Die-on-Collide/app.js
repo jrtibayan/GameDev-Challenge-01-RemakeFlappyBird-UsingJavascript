@@ -260,11 +260,14 @@ var State = class State {
 
 
 State.prototype.update = function(time) {
-    let pipeSpawn = this.pipeSpawn;
-    let backgrounds = this.backgrounds;
+    let newState = new State(this.status, this.backgrounds, this.actors, this.pipeSpawn);
+    
     let actors = this.actors;
+    let pipeSpawn = this.pipeSpawn;
+    
 
     if(this.status === "game") {
+        
         pipeSpawn.countDown -= time;
         if(pipeSpawn.countDown <= 0) {
             let multiplier = function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(5, 8);
@@ -289,19 +292,17 @@ State.prototype.update = function(time) {
         }
     }
 
-    backgrounds = this.backgrounds.map(background => {
+    let backgrounds = newState.backgrounds.map(background => {
         if(["floor", "city"].includes(background.getType())) background = background.update(time);
         return background;
     });
 
-    actors = this.actors.map(actor => {
+    actors = actors.map(actor => {
         if(["bird", "pipe"].includes(actor.getType())) actor = actor.update(time);
         return actor;
     });
 
-    let newState = new State(this.status, backgrounds, actors, pipeSpawn);
-
-    return newState;
+    return new State(this.status, backgrounds, actors, pipeSpawn);
 };
 
 
