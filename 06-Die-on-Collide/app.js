@@ -30,7 +30,8 @@ if(canvasWidth >= 500) {
 //*******************************************************************************************************************************
 // other important global vars
 var state = null, 
-    clicked = false;
+    clicked = false,
+    player = Object.create(null);
 
 
 //*******************************************************************************************************************************
@@ -123,8 +124,24 @@ City.prototype.update = function(time) {
 // Pipe
 
 var Pipe = class Pipe {
-    constructor(pos) {
-        this.pos = pos;
+    constructor(pos, placement) {
+        this.posOpening = pos;
+        let openingY = 80;
+        this.placement = placement;
+
+        let newPos = new Vec(pos.x, 0);
+        let size = new Vec(this.sizeHead.x, 0);
+
+        if(placement === "top") {
+            newPos.y = 0;
+            size.y = pos.y - Math.floor(openingY / 2) - this.sizeHead.y - newPos.y;
+        } else {
+            newPos.y = pos.y + Math.floor(openingY / 2);
+            size.y = (canvasHeight - 112) - newPos.y;    
+        }
+
+        this.pos = newPos;
+        this.size = size;
     }
 }
 
@@ -137,61 +154,54 @@ Pipe.prototype.sizeOnSrcBody = new Vec(48, 4);
 Pipe.prototype.posOnSrcHead = new Vec(502, 0);
 Pipe.prototype.sizeOnSrcHead = new Vec(52, 24);
 
-Pipe.prototype.sizeBody = new Vec(48, 4);
 Pipe.prototype.sizeHead = new Vec(52, 24);
+Pipe.prototype.sizeBody = new Vec(48, 4);
 
 Pipe.prototype.getType = function() {
     return "pipe";
 }
 
 Pipe.prototype.draw = function(cx) {
-    let pos = this.pos;
-    let openingY = 80;
+    let xOffSetBody = Math.floor((this.sizeHead.x - this.sizeBody.x) / 2);
 
-    let startYHeadTop = pos.y - Math.floor(openingY / 2) - this.sizeHead.y;
-    let startYBodyTop = 0;
-    let heightBodyTop = startYHeadTop - startYBodyTop;
+    let posHead = Object.create(null), 
+        posBody = Object.create(null), 
+        sizeBody = this.sizeBody;
 
-    let startYHeadBottom = pos.y + Math.floor(openingY / 2);
-    let startYBodyBottom = startYHeadBottom + this.sizeHead.y;
-    let heightBodyBottom = canvasHeight - 112 - startYBodyBottom;
-
-    let xOffSetBody = Math.floor(((this.sizeHead.x - this.sizeBody.x) / 2));
-
-    // top body
-    cx.drawImage(
-        this.srcImage,
-        this.posOnSrcBody.x, this.posOnSrcBody.y, this.sizeOnSrcBody.x, this.sizeOnSrcBody.y,
-        pos.x + xOffSetBody, startYBodyTop, this.sizeBody.x, heightBodyTop
-    );
-    // top head
+    posHead.x = this.pos.x;
+    posBody.x = this.pos.x;    
+    
     cx.save();
-    cx.translate(0, startYHeadTop + (this.sizeHead.y / 2));
-    cx.scale(1, -1);
-    cx.translate(0, -(startYHeadTop + (this.sizeHead.y / 2)));
+    if(this.placement === "top") {
+        posHead.y = this.pos.y + this.size.y;
+        posBody.y = this.pos.y;
+        sizeBody.y = posHead.y - posBody.y;
+        
+        cx.translate(0, posHead.y + (this.sizeHead.y / 2));
+        cx.scale(1, -1);
+        cx.translate(0, -(posHead.y + (this.sizeHead.y / 2)));
+    } else {
+        posHead.y = this.pos.y;
+        posBody.y = posHead.y + this.sizeHead.y;
+        sizeBody.y = canvasHeight - 112 - posBody.y;
+    }
+
     cx.drawImage(
-        this.srcImage,
-        this.posOnSrcHead.x, this.posOnSrcHead.y, this.sizeOnSrcHead.x, this.sizeOnSrcHead.y,
-        pos.x, startYHeadTop, this.sizeHead.x, this.sizeHead.y
+        this.srcImage, 
+        this.posOnSrcHead.x, this.posOnSrcHead.y, this.sizeOnSrcHead.x, this.sizeOnSrcHead.y, // CONSTANT
+        posHead.x, posHead.y, this.sizeHead.x, this.sizeHead.y
     );
     cx.restore();
 
-    // bottom body
     cx.drawImage(
         this.srcImage,
         this.posOnSrcBody.x, this.posOnSrcBody.y, this.sizeOnSrcBody.x, this.sizeOnSrcBody.y,
-        pos.x + xOffSetBody, startYBodyBottom, this.sizeBody.x, heightBodyBottom
-    );
-    // bottom head
-    cx.drawImage(
-        this.srcImage,
-        this.posOnSrcHead.x, this.posOnSrcHead.y, this.sizeOnSrcHead.x, this.sizeOnSrcHead.y,
-        pos.x, startYHeadBottom, this.sizeHead.x, this.sizeHead.y
+        posBody.x + xOffSetBody, posBody.y, sizeBody.x, sizeBody.y
     );
 }
 
 Pipe.prototype.update = function(time) {
-    return new Pipe(this.pos.plus(this.speed.times(time)));
+    return new Pipe(this.posOpening.plus(this.speed.times(time)), this.placement);
 }
 
 
@@ -253,7 +263,7 @@ var State = class State {
     }  
 
     static start() {
-        return new State("splash", [], [], {});
+        return new State("splash", [], [], Object.create(null));
     }
 
 }
@@ -283,12 +293,11 @@ State.prototype.update = function(time) {
             newY = Math.min(newY, canvasHeight - 112 - 80);
             newY = Math.max(newY, 80);
 
-            let newPipe = new Pipe(new Vec(canvasWidth + 100, newY));
+            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "top"));
+            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom"));
 
             pipeSpawn.lastY = newY;
             pipeSpawn.countDown = 1.7;
-
-            actors.push(newPipe);
         }
     }
 
@@ -437,7 +446,7 @@ function runGame(Display) {
     let floor3 = new Floor(new Vec(448, canvasHeight - 112));
     let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
     let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
-    let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
+    player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
 
     state.backgrounds.push(city1);
     state.backgrounds.push(city2);
