@@ -9,10 +9,10 @@
  *      6. << DONE >> Make bird jump
  *      7. << DONE >> Spawn Pipes
  *      8. << DONE >> Scroll Pipes
- *      9. Die when colliding with floor
- *     10. Die when colliding with ceiling
- *     11. Die when colliding with pipe
- *     12. Change state to score when bird dies
+ *      9. << DONE >> Die when colliding with floor
+ *     10. << DONE >> Die when colliding with ceiling
+ *     11. << DONE >> Die when colliding with pipe
+ *     12. << DONE >>Change state to score when bird dies
  */
 
 
@@ -30,8 +30,7 @@ if(canvasWidth >= 500) {
 //*******************************************************************************************************************************
 // other important global vars
 var state = null, 
-    clicked = false,
-    player = Object.create(null);
+    clicked = false;
 
 
 //*******************************************************************************************************************************
@@ -68,6 +67,7 @@ var Vec = class Vec {
 var Floor = class Floor {
     constructor(pos) {
         this.pos = pos;
+        this.resetPos = new Vec(447, pos.y);
     }
 }
 
@@ -76,7 +76,6 @@ Floor.prototype.posOnSrc = new Vec(276, 0);
 Floor.prototype.sizeOnSrc = new Vec(224, 14);
 Floor.prototype.size = new Vec(224, 14);
 Floor.prototype.speed = new Vec(-120, 0);
-Floor.prototype.resetPos = new Vec(447, canvasHeight - 112);
 
 Floor.prototype.getType = function() {
     return "floor";
@@ -268,13 +267,22 @@ var State = class State {
 
 }
 
-
 State.prototype.update = function(time) {
-    let newState = new State(this.status, this.backgrounds, this.actors, this.pipeSpawn);
-    
     let actors = this.actors;
     let pipeSpawn = this.pipeSpawn;
-    
+    let status = this.status;
+
+    let backgrounds = this.backgrounds.map(background => {
+        if(["floor", "city"].includes(background.getType())) background = background.update(time);
+        return background;
+    });
+
+    actors = actors.map(actor => {
+        if(["bird", "pipe", "floor"].includes(actor.getType())) actor = actor.update(time);
+        return actor;
+    });
+
+    let player = actors.find(a => a.getType() == "bird");
 
     if(this.status === "game") {
         
@@ -300,18 +308,22 @@ State.prototype.update = function(time) {
             pipeSpawn.countDown = 1.7;
         }
     }
+    
+    function overlap(actor1, actor2) {
+        return actor1.pos.x + actor1.size.x > actor2.pos.x &&
+               actor1.pos.x < actor2.pos.x + actor2.size.x &&
+               actor1.pos.y + actor1.size.y > actor2.pos.y &&
+               actor1.pos.y < actor2.pos.y + actor2.size.y;
+    }
 
-    let backgrounds = newState.backgrounds.map(background => {
-        if(["floor", "city"].includes(background.getType())) background = background.update(time);
-        return background;
-    });
+    for (let actor of actors) {
+        if (actor != player && overlap(actor, player)) {
+            console.log();
+            status = "score";
+        }
+    }
 
-    actors = actors.map(actor => {
-        if(["bird", "pipe"].includes(actor.getType())) actor = actor.update(time);
-        return actor;
-    });
-
-    return new State(this.status, backgrounds, actors, pipeSpawn);
+    return new State(status, backgrounds, actors, pipeSpawn);;
 };
 
 
@@ -338,16 +350,15 @@ var CanvasDisplay = class CanvasDisplay {
 
 CanvasDisplay.prototype.drawActors = function(actors) {
     for (let actor of actors) {
-        if(actor.getType()==="bird") {
+        if(actor.getType() === "pipe") {
+            actor.draw(this.cx);
+        } else {
             this.cx.drawImage(
                 actor.srcImage,
                 actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
                 actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
             );
-        } else {
-            actor.draw(this.cx);
         }
-        
     }
 };
 
@@ -444,21 +455,27 @@ function runGame(Display) {
     let floor1 = new Floor(new Vec(0, canvasHeight - 112));
     let floor2 = new Floor(new Vec(224, canvasHeight - 112));
     let floor3 = new Floor(new Vec(448, canvasHeight - 112));
+    let floor4 = new Floor(new Vec(0, 0));
+    let floor5 = new Floor(new Vec(224, 0));
+    let floor6 = new Floor(new Vec(448, 0));
     let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
     let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
-    player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
+    let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
 
     state.backgrounds.push(city1);
     state.backgrounds.push(city2);
     state.backgrounds.push(city3);
     state.backgrounds.push(ground);
-    state.backgrounds.push(floor1);
-    state.backgrounds.push(floor2);
-    state.backgrounds.push(floor3);
     state.backgrounds.push(getReady);
     state.backgrounds.push(instruction);
     state.actors.push(player);
-    
+    state.actors.push(floor1);
+    state.actors.push(floor2);
+    state.actors.push(floor3);
+    state.actors.push(floor4);
+    state.actors.push(floor5);
+    state.actors.push(floor6);
+
     runAnimation(time => {
     
         state = state.update(time);
