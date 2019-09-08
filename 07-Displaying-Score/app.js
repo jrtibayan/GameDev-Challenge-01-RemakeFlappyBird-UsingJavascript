@@ -135,8 +135,8 @@ var Pipe = class Pipe {
         let size = new Vec(this.sizeHead.x, 0);
 
         if(placement === "top") {
-            newPos.y = 0;
-            size.y = pos.y - Math.floor(openingY / 2) - this.sizeHead.y - newPos.y;
+            newPos.y = 14;
+            size.y = pos.y - Math.floor(openingY / 2);
         } else {
             newPos.y = pos.y + Math.floor(openingY / 2);
             size.y = (canvasHeight - 112) - newPos.y;    
@@ -175,7 +175,7 @@ Pipe.prototype.draw = function(cx) {
     
     cx.save();
     if(this.placement === "top") {
-        posHead.y = this.pos.y + this.size.y;
+        posHead.y = this.pos.y + this.size.y - this.sizeHead.y;
         posBody.y = this.pos.y;
         sizeBody.y = posHead.y - posBody.y;
         
