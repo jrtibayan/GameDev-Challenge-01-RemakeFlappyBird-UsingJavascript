@@ -463,6 +463,8 @@ function runGame(Display) {
     let floor6 = new Floor(new Vec(448, 0));
     let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
     let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
+    let gameover = new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38));
+    let scoreboard = new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116));
     let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
 
     state.backgrounds.push(city1);
@@ -471,6 +473,13 @@ function runGame(Display) {
     state.backgrounds.push(ground);
     state.backgrounds.push(getReady);
     state.backgrounds.push(instruction);
+
+    state.backgrounds.push(scoreboard);
+    state.backgrounds.push(gameover);
+    //state.backgrounds.push(boardBest);
+    //state.backgrounds.push(boardScore);
+    //state.backgrounds.push(currentScore);
+
     state.actors.push(player);
     state.actors.push(floor1);
     state.actors.push(floor2);
