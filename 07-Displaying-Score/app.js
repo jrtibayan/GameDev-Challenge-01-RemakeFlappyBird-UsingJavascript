@@ -138,7 +138,7 @@ var Pipe = class Pipe {
 
         if(placement === "top") {
             newPos.y = 14;
-            size.y = pos.y - Math.floor(openingY / 2);
+            size.y = pos.y - Math.floor(openingY / 2) - newPos.y;
         } else {
             newPos.y = pos.y + Math.floor(openingY / 2);
             size.y = (canvasHeight - 112) - newPos.y;    
@@ -278,6 +278,8 @@ State.prototype.update = function(time) {
     let actors = this.actors;
     let pipeSpawn = this.pipeSpawn;
     let status = this.status;
+    let limitY = 110;
+    let upperGroundY = 14;
 
     let backgrounds = this.backgrounds.map(background => {
         if(["actor", "city"].includes(background.getType())) background = background.update(time, state);
@@ -298,15 +300,15 @@ State.prototype.update = function(time) {
             let multiplier = function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(5, 8);
 
             let direction = (function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(1, 100) % 2 === 0) ? 1 : -1;
-            direction = (state.pipeSpawn.lastY - (multiplier * 15) < 80) ? 1 : direction;
-            direction = (state.pipeSpawn.lastY + (multiplier * 15) > canvasHeight - 112 - 80) ? -1 : direction;
+            direction = (state.pipeSpawn.lastY - (multiplier * 15) < limitY + upperGroundY) ? 1 : direction;
+            direction = (state.pipeSpawn.lastY + (multiplier * 15) > canvasHeight - 112 - limitY) ? -1 : direction;
 
             let addY = multiplier * 15 * direction;
 
             let newY = state.pipeSpawn.lastY + addY;
 
-            newY = Math.min(newY, canvasHeight - 112 - 80);
-            newY = Math.max(newY, 80);
+            newY = Math.min(newY, canvasHeight - 112 - limitY);
+            newY = Math.max(newY, limitY + upperGroundY);
 
             actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "top"));
             actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom"));
