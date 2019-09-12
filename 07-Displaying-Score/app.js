@@ -71,6 +71,7 @@ var Floor = class Floor {
     constructor(pos) {
         this.pos = pos;
         this.resetPos = new Vec(447, pos.y);
+        this.display = !(pos.x > canvasWidth || pos.x + this.size.x < 0);
     }
 }
 
@@ -99,6 +100,7 @@ Floor.prototype.update = function(time) {
 var City = class City {
     constructor(pos) {
         this.pos = pos;
+        this.display = !(pos.x > canvasWidth || pos.x + this.size.x < 0);
     }
 }
 
@@ -147,6 +149,7 @@ var Pipe = class Pipe {
     }
 }
 
+Pipe.prototype.display = true;
 Pipe.prototype.speed = new Vec(-120, 0);
 Pipe.prototype.srcImage = images;
 
@@ -220,6 +223,7 @@ var Bird = class Bird {
     }
 }
 
+Bird.prototype.display = true;
 Bird.prototype.srcImage = images;
 Bird.prototype.posOnSrc = new Vec(312, 230);
 Bird.prototype.sizeOnSrc = new Vec(34, 24);
@@ -276,7 +280,7 @@ State.prototype.update = function(time) {
     let status = this.status;
 
     let backgrounds = this.backgrounds.map(background => {
-        if(["floor", "city"].includes(background.getType())) background = background.update(time);
+        if(["actor", "city"].includes(background.getType())) background = background.update(time, state);
         return background;
     });
 
@@ -321,7 +325,6 @@ State.prototype.update = function(time) {
 
     for (let actor of actors) {
         if (actor != player && overlap(actor, player)) {
-            console.log();
             status = "score";
         }
     }
@@ -353,20 +356,23 @@ var CanvasDisplay = class CanvasDisplay {
 
 CanvasDisplay.prototype.drawActors = function(actors) {
     for (let actor of actors) {
-        if(actor.getType() === "pipe") {
-            actor.draw(this.cx);
-        } else {
-            this.cx.drawImage(
-                actor.srcImage,
-                actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
-                actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
-            );
+        if(actor.display) {
+            if(actor.getType() === "pipe") {
+                actor.draw(this.cx);
+            } else {
+                this.cx.drawImage(
+                    actor.srcImage,
+                    actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
+                    actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
+                );
+            }
         }
     }
 };
 
 CanvasDisplay.prototype.drawBackground = function(backgrounds) {
     for (let bg of backgrounds) {
+        if(bg.display)
         this.cx.drawImage(
             bg.srcImage,
             bg.posOnSrc.x, bg.posOnSrc.y, bg.sizeOnSrc.x, bg.sizeOnSrc.y,
@@ -391,7 +397,7 @@ CanvasDisplay.prototype.syncState = function(state) {
 // the Actor class. for now I will be using this for all ingame objects and will separate them later on if there is a need to separate them
 
 var Actor = class Actor {
-    constructor(srcImage, posOnSrc, sizeOnSrc, pos, size) {
+    constructor(srcImage, posOnSrc, sizeOnSrc, pos, size, displayCondition, state) {
         this.srcImage = srcImage;
 
         this.posOnSrc = posOnSrc;
@@ -399,7 +405,14 @@ var Actor = class Actor {
 
         this.pos = pos;
         this.size = size;
+
+        this.displayCondition = displayCondition;
+        this.display = displayCondition(state);    
     }
+}
+
+Actor.prototype.update = function(time, state) {
+    return new Actor(this.srcImage, this.posOnSrc, this.sizeOnSrc, this.pos, this.size, this.displayCondition, state);
 }
 
 Actor.prototype.getType = function() {
@@ -454,17 +467,27 @@ function runGame(Display) {
     let city1 = new City(new Vec(0, canvasHeight - 232));
     let city2 = new City(new Vec(275, canvasHeight - 232));
     let city3 = new City(new Vec(550, canvasHeight - 232));
-    let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98));
+    let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98),
+        function() { return true; }, state
+    );
     let floor1 = new Floor(new Vec(0, canvasHeight - 112));
     let floor2 = new Floor(new Vec(224, canvasHeight - 112));
     let floor3 = new Floor(new Vec(448, canvasHeight - 112));
     let floor4 = new Floor(new Vec(0, 0));
     let floor5 = new Floor(new Vec(224, 0));
     let floor6 = new Floor(new Vec(448, 0));
-    let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44));
-    let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120));
-    let gameover = new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38));
-    let scoreboard = new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116));
+    let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44),
+        function(state) { return state.status === "splash"; }, state
+    );
+    let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120),
+        function(state) { return state.status === "splash"; }, state
+    );
+    let gameover = new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38),
+        function(state) { return state.status === "score"; }, state
+    );
+    let scoreboard = new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116),
+        function(state) { return state.status === "score"; }, state
+    );
     let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
 
     state.backgrounds.push(city1);
