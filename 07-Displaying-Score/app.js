@@ -282,12 +282,12 @@ State.prototype.update = function(time) {
     let upperGroundY = 14;
 
     let backgrounds = this.backgrounds.map(background => {
-        if(["actor", "city"].includes(background.getType())) background = background.update(time, state);
+        if(["actor", "city"].includes(background.getType())) background = background.update(time, this);
         return background;
     });
 
     actors = actors.map(actor => {
-        if(["bird", "pipe", "floor"].includes(actor.getType())) actor = actor.update(time);
+        if(["bird", "pipe", "floor"].includes(actor.getType())) actor = actor.update(time, this);
         return actor;
     });
 
@@ -300,12 +300,12 @@ State.prototype.update = function(time) {
             let multiplier = function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(5, 8);
 
             let direction = (function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }(1, 100) % 2 === 0) ? 1 : -1;
-            direction = (state.pipeSpawn.lastY - (multiplier * 15) < limitY + upperGroundY) ? 1 : direction;
-            direction = (state.pipeSpawn.lastY + (multiplier * 15) > canvasHeight - 112 - limitY) ? -1 : direction;
+            direction = (this.pipeSpawn.lastY - (multiplier * 15) < limitY + upperGroundY) ? 1 : direction;
+            direction = (this.pipeSpawn.lastY + (multiplier * 15) > canvasHeight - 112 - limitY) ? -1 : direction;
 
             let addY = multiplier * 15 * direction;
 
-            let newY = state.pipeSpawn.lastY + addY;
+            let newY = this.pipeSpawn.lastY + addY;
 
             newY = Math.min(newY, canvasHeight - 112 - limitY);
             newY = Math.max(newY, limitY + upperGroundY);
@@ -466,52 +466,37 @@ function runGame(Display) {
     state = State.start();
     window.addEventListener("mousedown", onpress);
 
-    let city1 = new City(new Vec(0, canvasHeight - 232));
-    let city2 = new City(new Vec(275, canvasHeight - 232));
-    let city3 = new City(new Vec(550, canvasHeight - 232));
-    let ground = new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98),
-        function() { return true; }, state
-    );
-    let floor1 = new Floor(new Vec(0, canvasHeight - 112));
-    let floor2 = new Floor(new Vec(224, canvasHeight - 112));
-    let floor3 = new Floor(new Vec(448, canvasHeight - 112));
-    let floor4 = new Floor(new Vec(0, 0));
-    let floor5 = new Floor(new Vec(224, 0));
-    let floor6 = new Floor(new Vec(448, 0));
-    let getReady = new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44),
-        function(state) { return state.status === "splash"; }, state
-    );
-    let instruction = new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120),
-        function(state) { return state.status === "splash"; }, state
-    );
-    let gameover = new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38),
-        function(state) { return state.status === "score"; }, state
-    );
-    let scoreboard = new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116),
-        function(state) { return state.status === "score"; }, state
-    );
-    let player = Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12));
-
-    state.backgrounds.push(city1);
-    state.backgrounds.push(city2);
-    state.backgrounds.push(city3);
-    state.backgrounds.push(ground);
-    state.backgrounds.push(getReady);
-    state.backgrounds.push(instruction);
-
-    state.backgrounds.push(scoreboard);
-    state.backgrounds.push(gameover);
+    // BACKGROUND IMAGES
+    // ground
+    state.backgrounds.push(new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98), function() { return true; }, state));
+    // city
+    state.backgrounds.push(new City(new Vec(0, canvasHeight - 232))); // city bg
+    state.backgrounds.push(new City(new Vec(275, canvasHeight - 232))); // city bg
+    state.backgrounds.push(new City(new Vec(550, canvasHeight - 232))); // city bg
+    // get ready
+    state.backgrounds.push(new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44), function(state) { return state.status === "splash"; }, state));
+    // instruction
+    state.backgrounds.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
+    // scoreboard
+    state.backgrounds.push(new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116), function(state) { return state.status === "score"; }, state));
+    // game over
+    state.backgrounds.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
+    // TODO
     //state.backgrounds.push(boardBest);
     //state.backgrounds.push(boardScore);
     //state.backgrounds.push(currentScore);
 
-    state.actors.push(player);
-    state.actors.push(floor1);
-    state.actors.push(floor2);
-    state.actors.push(floor3);
-    state.actors.push(floor4);
-    state.actors.push(floor5);
-    state.actors.push(floor6);
+    // PLAYER AND OTHER ACTORS
+    // floor
+    state.actors.push(new Floor(new Vec(0, canvasHeight - 112)));
+    state.actors.push(new Floor(new Vec(224, canvasHeight - 112)));
+    state.actors.push(new Floor(new Vec(448, canvasHeight - 112)));
+    // ceiling
+    state.actors.push(new Floor(new Vec(0, 0)));
+    state.actors.push(new Floor(new Vec(224, 0)));
+    state.actors.push(new Floor(new Vec(448, 0)));
+    // player
+    state.actors.push(Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12)));    
 
     runAnimation(time => {
     
