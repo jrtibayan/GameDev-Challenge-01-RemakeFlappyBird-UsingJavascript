@@ -95,6 +95,85 @@ Floor.prototype.update = function(time) {
 
 
 //*******************************************************************************************************************************
+// scoreboard
+
+var ScoreBoard = class ScoreBoard {
+    constructor(state) {
+        this.scores = state.scores;
+        this.display = state.status === "score";
+
+        // Best Score
+        let xOffset = 0;
+        if(state.scores.best[2] > 0) xOffset = 0;
+        else if(state.scores.best[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
+        else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
+
+        let bestPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 31);
+        this.bestNums = [];
+        
+        this.bestNums.push({src: new Vec(this.scores.best[0] * 16, 376), dest: bestPos});
+        if(this.scores.best[2] > 0 || this.scores.best[1] > 0) this.bestNums.push({src: new Vec(this.scores.best[1] * 16, 376), dest: bestPos.plus(new Vec(-(this.numSize.x + 2) * 1, 0))});
+        if(this.scores.best[2] > 0) this.bestNums.push({src: new Vec(this.scores.best[2] * 16, 376), dest: bestPos.plus(new Vec(-(this.numSize.x + 2) * 2, 0))});
+
+        // Current Score
+        if(state.scores.current[2] > 0) xOffset = 0;
+        else if(state.scores.current[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
+        else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
+
+        let currentPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 74);
+        this.currentNums = [];
+
+        this.currentNums.push({src: new Vec(this.scores.current[0] * 16, 376), dest: currentPos});
+        if(this.scores.current[2] > 0 || this.scores.current[1] > 0) this.currentNums.push({src: new Vec(this.scores.current[1] * 16, 376), dest: currentPos.plus(new Vec(-(this.numSize.x + 2) * 1, 0))});
+        if(this.scores.current[2] > 0) this.currentNums.push({src: new Vec(this.scores.current[2] * 16, 376), dest: currentPos.plus(new Vec(-(this.numSize.x + 2) * 2, 0))});
+    }
+}
+
+ScoreBoard.prototype.srcImage = images;
+ScoreBoard.prototype.posOnSrc = new Vec(276, 112);
+ScoreBoard.prototype.sizeOnSrc = new Vec(226, 116);
+ScoreBoard.prototype.pos = new Vec(Math.floor(canvasWidth / 2) - 113, 155);
+ScoreBoard.prototype.size = new Vec(226, 116);
+ScoreBoard.prototype.numXSpacing = 2;
+ScoreBoard.prototype.numSize = new Vec(14, 20);
+
+ScoreBoard.prototype.getType = function() {
+    return "scoreboard";
+}
+
+ScoreBoard.prototype.update = function(time, state) {
+    return new ScoreBoard(state);
+}
+
+ScoreBoard.prototype.draw = function(cx) {
+    // draw score board
+    cx.drawImage(
+        this.srcImage, 
+        this.posOnSrc.x, this.posOnSrc.y, this.sizeOnSrc.x, this.sizeOnSrc.y,
+        this.pos.x, this.pos.y, this.size.x, this.size.y
+    );
+
+    // draw best score
+    this.bestNums.forEach(bNum => {
+        cx.drawImage(
+            this.srcImage, 
+            bNum.src.x, bNum.src.y, this.numSize.x, this.numSize.y,
+            bNum.dest.x, bNum.dest.y, this.numSize.x, this.numSize.y
+        );
+    });
+
+    // draw current score
+    this.currentNums.forEach(cNum => {
+        cx.drawImage(
+            this.srcImage, 
+            cNum.src.x, cNum.src.y, this.numSize.x, this.numSize.y,
+            cNum.dest.x, cNum.dest.y, this.numSize.x, this.numSize.y
+        );
+    });
+}
+
+
+//*******************************************************************************************************************************
 // city
 
 var City = class City {
@@ -261,15 +340,16 @@ Bird.prototype.update = function(time) {
 
 var State = class State {
 
-    constructor(status, backgrounds, actors, pipeSpawn) {
+    constructor(status, backgrounds, actors, pipeSpawn, scores) {
         this.status = status;
         this.actors = actors;
         this.backgrounds = backgrounds;
         this.pipeSpawn = pipeSpawn;
+        this.scores = scores;
     }  
 
     static start() {
-        return new State("splash", [], [], Object.create(null));
+        return new State("splash", [], [], Object.create(null), {best: [0, 0, 0], current: [0, 0, 0]});
     }
 
 }
@@ -278,11 +358,12 @@ State.prototype.update = function(time) {
     let actors = this.actors;
     let pipeSpawn = this.pipeSpawn;
     let status = this.status;
+    let newScores = this.scores;
     let limitY = 110;
     let upperGroundY = 14;
 
     let backgrounds = this.backgrounds.map(background => {
-        if(["actor", "city"].includes(background.getType())) background = background.update(time, this);
+        if(["actor", "city", "scoreboard"].includes(background.getType())) background = background.update(time, this);
         return background;
     });
 
@@ -331,7 +412,7 @@ State.prototype.update = function(time) {
         }
     }
 
-    return new State(status, backgrounds, actors, pipeSpawn);;
+    return new State(status, backgrounds, actors, pipeSpawn, newScores);
 };
 
 
@@ -359,7 +440,7 @@ var CanvasDisplay = class CanvasDisplay {
 CanvasDisplay.prototype.drawActors = function(actors) {
     for (let actor of actors) {
         if(actor.display) {
-            if(actor.getType() === "pipe") {
+            if(["pipe"].includes(actor.getType())) {
                 actor.draw(this.cx);
             } else {
                 this.cx.drawImage(
@@ -374,12 +455,17 @@ CanvasDisplay.prototype.drawActors = function(actors) {
 
 CanvasDisplay.prototype.drawBackground = function(backgrounds) {
     for (let bg of backgrounds) {
-        if(bg.display)
-        this.cx.drawImage(
-            bg.srcImage,
-            bg.posOnSrc.x, bg.posOnSrc.y, bg.sizeOnSrc.x, bg.sizeOnSrc.y,
-            bg.pos.x, bg.pos.y, bg.size.x, bg.size.y
-        );
+        if(bg.display) {
+            if(["scoreboard"].includes(bg.getType())) {
+                bg.draw(this.cx);
+            } else {
+                this.cx.drawImage(
+                    bg.srcImage,
+                    bg.posOnSrc.x, bg.posOnSrc.y, bg.sizeOnSrc.x, bg.sizeOnSrc.y,
+                    bg.pos.x, bg.pos.y, bg.size.x, bg.size.y
+                );
+            }
+        }
     }
 };
 
@@ -447,14 +533,14 @@ function onpress(event) {
             pipeSpawn.countDown = .3;
             pipeSpawn.lastY = Math.floor((canvasHeight - 112) / 2);
             clicked = true;
-            state = new State("game", state.backgrounds, state.actors, pipeSpawn);
+            state = new State("game", state.backgrounds, state.actors, pipeSpawn, state.scores);
         break;
         case "game":
             clicked = true;
-            state = new State(state.status, state.backgrounds, state.actors, state.pipeSpawn);
+            state = new State(state.status, state.backgrounds, state.actors, state.pipeSpawn, state.scores);
         break;
         case "score":
-            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn);
+            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn, state.scores);
         break;
     }
 }
@@ -478,12 +564,10 @@ function runGame(Display) {
     // instruction
     state.backgrounds.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
     // scoreboard
-    state.backgrounds.push(new Actor(images, new Vec(276, 112), new Vec(226, 116), new Vec(Math.floor(canvasWidth / 2) - 113, 155), new Vec(226, 116), function(state) { return state.status === "score"; }, state));
+    state.backgrounds.push(new ScoreBoard(state));
     // game over
     state.backgrounds.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
     // TODO
-    //state.backgrounds.push(boardBest);
-    //state.backgrounds.push(boardScore);
     //state.backgrounds.push(currentScore);
 
     // PLAYER AND OTHER ACTORS
