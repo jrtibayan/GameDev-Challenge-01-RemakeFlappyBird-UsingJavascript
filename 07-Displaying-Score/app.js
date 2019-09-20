@@ -12,7 +12,7 @@
  *      9. << DONE >> Die when colliding with floor
  *     10. << DONE >> Die when colliding with ceiling
  *     11. << DONE >> Die when colliding with pipe
- *     12. << DONE >>Change state to score when bird dies
+ *     12. << DONE >> Change state to score when bird dies
  *     13. Acquire points during game state
  *     14. Display current and highest score during score state
  *     15. Change state to flash if clicked during score state
@@ -108,7 +108,7 @@ var ScoreBoard = class ScoreBoard {
         else if(state.scores.best[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
         else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
 
-        let bestPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 31);
+        let bestPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 74);
         this.bestNums = [];
         
         this.bestNums.push({src: new Vec(this.scores.best[0] * 16, 376), dest: bestPos});
@@ -120,7 +120,7 @@ var ScoreBoard = class ScoreBoard {
         else if(state.scores.current[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
         else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
 
-        let currentPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 74);
+        let currentPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 31);
         this.currentNums = [];
 
         this.currentNums.push({src: new Vec(this.scores.current[0] * 16, 376), dest: currentPos});
@@ -207,10 +207,11 @@ City.prototype.update = function(time) {
 // Pipe
 
 var Pipe = class Pipe {
-    constructor(pos, placement) {
+    constructor(pos, placement, scored) {
         this.posOpening = pos;
         let openingY = 80;
         this.placement = placement;
+        this.scored = scored;
 
         let newPos = new Vec(pos.x, 0);
         let size = new Vec(this.sizeHead.x, 0);
@@ -285,7 +286,7 @@ Pipe.prototype.draw = function(cx) {
 }
 
 Pipe.prototype.update = function(time) {
-    return new Pipe(this.posOpening.plus(this.speed.times(time)), this.placement);
+    return new Pipe(this.posOpening.plus(this.speed.times(time)), this.placement, this.scored);
 }
 
 
@@ -361,6 +362,7 @@ State.prototype.update = function(time) {
     let newScores = this.scores;
     let limitY = 110;
     let upperGroundY = 14;
+    let player = null;
 
     let backgrounds = this.backgrounds.map(background => {
         if(["actor", "city", "scoreboard"].includes(background.getType())) background = background.update(time, this);
@@ -368,11 +370,33 @@ State.prototype.update = function(time) {
     });
 
     actors = actors.map(actor => {
+        //update all actors
         if(["bird", "pipe", "floor"].includes(actor.getType())) actor = actor.update(time, this);
+
+        // asign bird to player
+        if(actor.getType() === "bird") player = actor;
+
+        // after pipe and bird is updated check the pipe of already passed the bird and increment score
+        if(["pipe"].includes(actor.getType())) {
+            if(actor.scored === false && actor.posOpening.x + actor.size.x + 3 < player.pos.x) {
+                actor = new Pipe(actor.posOpening, actor.placement, true);
+                // increment current score
+                newScores.current[0]+= .5;
+                if(newScores.current[0] === 10) {
+                    newScores.current[0] = 0;
+                    newScores.current[1]++;
+                }
+                if(newScores.current[1] === 10) {
+                    newScores.current[1] = 0;
+                    newScores.current[2]++;
+                }
+                // update best score if current is higher
+                if(newScores.current[0] + (newScores.current[1] * 10) + (newScores.current[2] * 100)  > newScores.best[0]+ (newScores.best[1]*10)+ (newScores.best[2]*100)) newScores.best = newScores.current;
+            }
+        }
+
         return actor;
     });
-
-    let player = actors.find(a => a.getType() == "bird");
 
     if(this.status === "game") {
         
@@ -391,8 +415,8 @@ State.prototype.update = function(time) {
             newY = Math.min(newY, canvasHeight - 112 - limitY);
             newY = Math.max(newY, limitY + upperGroundY);
 
-            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "top"));
-            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom"));
+            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "top", false));
+            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom", false));
 
             pipeSpawn.lastY = newY;
             pipeSpawn.countDown = 1.7;
@@ -540,7 +564,7 @@ function onpress(event) {
             state = new State(state.status, state.backgrounds, state.actors, state.pipeSpawn, state.scores);
         break;
         case "score":
-            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn, state.scores);
+            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn, {best: state.scores.best, current: [0, 0, 0]});
         break;
     }
 }
