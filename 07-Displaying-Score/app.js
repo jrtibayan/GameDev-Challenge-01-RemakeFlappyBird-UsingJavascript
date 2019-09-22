@@ -95,6 +95,54 @@ Floor.prototype.update = function(time) {
 
 
 //*******************************************************************************************************************************
+// score
+
+var Score = class Score {
+    constructor(pos, score) {
+        this.givenPos = pos;
+        this.score = score;
+
+        let xOffset = 0;
+        let numberSpacing = 2;
+        if(score[2] > 0) xOffset = 0;
+        else if(score[1] > 0) xOffset = Math.floor((this.numSize.x + numberSpacing) / 2);
+        else xOffset = Math.floor((this.numSize.x + numberSpacing) / 2) * 2;
+
+        let numPos = new Vec(this.givenPos.x - xOffset, this.givenPos.y);
+        this.nums = [];
+        
+        this.nums.push({src: new Vec(score[0] * 16, 376), dest: numPos});
+        if(score[2] > 0 || score[1] > 0) this.nums.push({src: new Vec(score[1] * 16, 376), dest: numPos.plus(new Vec(-(this.numSize.x + 2) * 1, 0))});
+        if(score[2] > 0) this.nums.push({src: new Vec(score[2] * 16, 376), dest: numPos.plus(new Vec(-(this.numSize.x + 2) * 2, 0))});
+    }
+}
+
+Score.prototype.display = true;
+Score.prototype.srcImage = images;
+Score.prototype.posOnSrc = new Vec(276, 112);
+Score.prototype.sizeOnSrc = new Vec(226, 116);
+Score.prototype.numSize = new Vec(14, 20);
+
+Score.prototype.getType = function() {
+    return "score";
+}
+
+Score.prototype.update = function(time, score) {
+    return new Score(this.givenPos, score);
+}
+
+Score.prototype.draw = function(cx) {
+    this.nums.forEach(bNum => {
+        cx.drawImage(
+            this.srcImage, 
+            bNum.src.x, bNum.src.y, this.numSize.x, this.numSize.y,
+            bNum.dest.x, bNum.dest.y, this.numSize.x, this.numSize.y
+        );
+    });
+}
+
+
+//*******************************************************************************************************************************
 // scoreboard
 
 var ScoreBoard = class ScoreBoard {
@@ -103,29 +151,10 @@ var ScoreBoard = class ScoreBoard {
         this.display = state.status === "score";
 
         // Best Score
-        let xOffset = 0;
-        if(state.scores.best[2] > 0) xOffset = 0;
-        else if(state.scores.best[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
-        else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
-
-        let bestPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 74);
-        this.bestNums = [];
-        
-        this.bestNums.push({src: new Vec(this.scores.best[0] * 16, 376), dest: bestPos});
-        if(this.scores.best[2] > 0 || this.scores.best[1] > 0) this.bestNums.push({src: new Vec(this.scores.best[1] * 16, 376), dest: bestPos.plus(new Vec(-(this.numSize.x + 2) * 1, 0))});
-        if(this.scores.best[2] > 0) this.bestNums.push({src: new Vec(this.scores.best[2] * 16, 376), dest: bestPos.plus(new Vec(-(this.numSize.x + 2) * 2, 0))});
+        this.bestScore = new Score(new Vec(this.pos.x + 191, this.pos.y + 74), state.scores.best);
 
         // Current Score
-        if(state.scores.current[2] > 0) xOffset = 0;
-        else if(state.scores.current[1] > 0) xOffset = Math.floor((this.numSize.x + 2)/2);
-        else xOffset = Math.floor((this.numSize.x + 2)/2) * 2;
-
-        let currentPos = new Vec(this.pos.x + 191 - xOffset, this.pos.y + 31);
-        this.currentNums = [];
-
-        this.currentNums.push({src: new Vec(this.scores.current[0] * 16, 376), dest: currentPos});
-        if(this.scores.current[2] > 0 || this.scores.current[1] > 0) this.currentNums.push({src: new Vec(this.scores.current[1] * 16, 376), dest: currentPos.plus(new Vec(-(this.numSize.x + 2) * 1, 0))});
-        if(this.scores.current[2] > 0) this.currentNums.push({src: new Vec(this.scores.current[2] * 16, 376), dest: currentPos.plus(new Vec(-(this.numSize.x + 2) * 2, 0))});
+        this.currentScore = new Score(new Vec(this.pos.x + 191, this.pos.y + 31), state.scores.current);
     }
 }
 
@@ -154,22 +183,10 @@ ScoreBoard.prototype.draw = function(cx) {
     );
 
     // draw best score
-    this.bestNums.forEach(bNum => {
-        cx.drawImage(
-            this.srcImage, 
-            bNum.src.x, bNum.src.y, this.numSize.x, this.numSize.y,
-            bNum.dest.x, bNum.dest.y, this.numSize.x, this.numSize.y
-        );
-    });
+    this.bestScore.draw(cx);
 
     // draw current score
-    this.currentNums.forEach(cNum => {
-        cx.drawImage(
-            this.srcImage, 
-            cNum.src.x, cNum.src.y, this.numSize.x, this.numSize.y,
-            cNum.dest.x, cNum.dest.y, this.numSize.x, this.numSize.y
-        );
-    });
+    this.currentScore.draw(cx);
 }
 
 
@@ -366,6 +383,7 @@ State.prototype.update = function(time) {
 
     let backgrounds = this.backgrounds.map(background => {
         if(["actor", "city", "scoreboard"].includes(background.getType())) background = background.update(time, this);
+        if(["score"].includes(background.getType())) background = background.update(time, state.scores.current);
         return background;
     });
 
@@ -480,7 +498,7 @@ CanvasDisplay.prototype.drawActors = function(actors) {
 CanvasDisplay.prototype.drawBackground = function(backgrounds) {
     for (let bg of backgrounds) {
         if(bg.display) {
-            if(["scoreboard"].includes(bg.getType())) {
+            if(["scoreboard", "score"].includes(bg.getType())) {
                 bg.draw(this.cx);
             } else {
                 this.cx.drawImage(
@@ -589,6 +607,8 @@ function runGame(Display) {
     state.backgrounds.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
     // scoreboard
     state.backgrounds.push(new ScoreBoard(state));
+    // score
+    state.backgrounds.push(new Score(new Vec(167, 20), state.scores.current));
     // game over
     state.backgrounds.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
     // TODO
