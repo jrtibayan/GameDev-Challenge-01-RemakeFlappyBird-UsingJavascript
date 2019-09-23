@@ -88,10 +88,13 @@ Floor.prototype.getType = function() {
     return "floor";
 }
 
-Floor.prototype.update = function(time) {
-    let newPos = this.pos.plus(this.speed.times(time));
+Floor.prototype.update = function(time, state) {
+    let newPos = this.pos;
 
-    if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+    if(state.status != "score") {
+        newPos = this.pos.plus(this.speed.times(time));
+        if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+    }
 
     return new Floor(newPos);
 }
@@ -217,10 +220,13 @@ City.prototype.getType = function() {
     return "city";
 }
 
-City.prototype.update = function(time) {
-    let newPos = this.pos.plus(this.speed.times(time));
+City.prototype.update = function(time, state) {
+    let newPos = this.pos;
 
-    if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+    if(state.status != "score") {
+        newPos = this.pos.plus(this.speed.times(time));
+        if(newPos.x + this.size.x < 0) newPos = this.resetPos;
+    }
 
     return new City(newPos);
 }
@@ -310,8 +316,14 @@ Pipe.prototype.draw = function(cx) {
     );
 }
 
-Pipe.prototype.update = function(time) {
-    return new Pipe(this.posOpening.plus(this.speed.times(time)), this.placement, this.scored);
+Pipe.prototype.update = function(time, state) {
+    let newPos = this.posOpening;
+    
+    if(state.status != "score") {
+        newPos = this.posOpening.plus(this.speed.times(time));
+    }
+
+    return new Pipe(newPos, this.placement, this.scored);
 }
 
 
@@ -328,7 +340,7 @@ var Bird = class Bird {
     }
 }
 
-Bird.prototype.zIndex = 5;
+Bird.prototype.zIndex = 11;
 Bird.prototype.display = true;
 Bird.prototype.srcImage = images;
 Bird.prototype.posOnSrc = new Vec(312, 230);
@@ -348,14 +360,18 @@ Bird.prototype.jump = function() {
 Bird.prototype.update = function(time) {
     let pos = this.pos;
     let speed = this.speed;
-    
-    if(state.status == "game") {
-        if(clicked) {
-            speed = this.jump();
-            clicked = false;
-        } 
+
+    if(state.status != "splash") {
+        if(state.status === "game") {
+            if(clicked) {
+                speed = this.jump();
+                clicked = false;
+            } 
+        }
         speed = speed.plus(this.gravity);
-        pos = pos.plus(speed.times(time))
+        pos = pos.plus(speed.times(time));
+        pos.y = Math.min(pos.y, canvasHeight - this.size.y - 108);
+        pos.y = Math.max(pos.y, 7);
     }
     
     return new Bird(pos, speed);
