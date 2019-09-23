@@ -76,6 +76,8 @@ var Floor = class Floor {
     }
 }
 
+Floor.prototype.zIndex = 3;
+Floor.prototype.checkCollideWithPlayer = true;
 Floor.prototype.srcImage = images;
 Floor.prototype.posOnSrc = new Vec(276, 0);
 Floor.prototype.sizeOnSrc = new Vec(224, 14);
@@ -118,6 +120,7 @@ var Score = class Score {
     }
 }
 
+Score.prototype.zIndex = 10;
 Score.prototype.display = true;
 Score.prototype.srcImage = images;
 Score.prototype.posOnSrc = new Vec(276, 112);
@@ -159,6 +162,7 @@ var ScoreBoard = class ScoreBoard {
     }
 }
 
+ScoreBoard.prototype.zIndex = 9;
 ScoreBoard.prototype.srcImage = images;
 ScoreBoard.prototype.posOnSrc = new Vec(276, 112);
 ScoreBoard.prototype.sizeOnSrc = new Vec(226, 116);
@@ -201,6 +205,7 @@ var City = class City {
     }
 }
 
+City.prototype.zIndex = 1;
 City.prototype.srcImage = images;
 City.prototype.posOnSrc = new Vec(0, 0);
 City.prototype.sizeOnSrc = new Vec(275, 120);
@@ -247,6 +252,8 @@ var Pipe = class Pipe {
     }
 }
 
+Pipe.prototype.zIndex = 4;
+Pipe.prototype.checkCollideWithPlayer = true;
 Pipe.prototype.display = true;
 Pipe.prototype.speed = new Vec(-120, 0);
 Pipe.prototype.srcImage = images;
@@ -321,6 +328,7 @@ var Bird = class Bird {
     }
 }
 
+Bird.prototype.zIndex = 5;
 Bird.prototype.display = true;
 Bird.prototype.srcImage = images;
 Bird.prototype.posOnSrc = new Vec(312, 230);
@@ -359,22 +367,21 @@ Bird.prototype.update = function(time) {
 
 var State = class State {
 
-    constructor(status, backgrounds, actors, pipeSpawn, scores) {
+    constructor(status, sprites, pipeSpawn, scores) {
         this.status = status;
-        this.actors = actors;
-        this.backgrounds = backgrounds;
+        this.sprites = sprites;
         this.pipeSpawn = pipeSpawn;
         this.scores = scores;
     }  
 
     static start() {
-        return new State("splash", [], [], Object.create(null), {best: [0, 0, 0], current: [0, 0, 0]});
+        return new State("splash", [], Object.create(null), {best: [0, 0, 0], current: [0, 0, 0]});
     }
 
 }
 
 State.prototype.update = function(time) {
-    let actors = this.actors;
+    let sprites = this.sprites;
     let pipeSpawn = this.pipeSpawn;
     let status = this.status;
     let newScores = this.scores;
@@ -382,23 +389,26 @@ State.prototype.update = function(time) {
     let upperGroundY = 14;
     let player = null;
 
-    let backgrounds = this.backgrounds.map(background => {
-        if(["actor", "city", "scoreboard"].includes(background.getType())) background = background.update(time, this);
-        if(["score"].includes(background.getType())) background = background.update(time, state.scores.current);
-        return background;
+    // sort sprites by zIndex
+    sprites.sort(function(a, b) { 
+        if(a.zIndex > b.zIndex) return 1;
+        else return -1;
     });
 
-    actors = actors.map(actor => {
-        //update all actors
-        if(["bird", "pipe", "floor"].includes(actor.getType())) actor = actor.update(time, this);
+    // find the bird and asign it to player variable
+    sprites = this.sprites.map(sprite => {
+        if(sprite.getType() === "bird") player = sprite;
+    });
 
-        // asign bird to player
-        if(actor.getType() === "bird") player = actor;
+    sprites = this.sprites.map(sprite => {
+        // update everything first
+        if(["city", "scoreboard", "bird", "pipe", "floor", "actor"].includes(sprite.getType())) sprite = sprite.update(time, this);
+        if(["score"].includes(sprite.getType())) sprite = sprite.update(time, state.scores.current);
 
-        // after pipe and bird is updated check the pipe of already passed the bird and increment score
-        if(["pipe"].includes(actor.getType())) {
-            if(actor.scored === false && actor.posOpening.x + actor.size.x + 3 < player.pos.x) {
-                actor = new Pipe(actor.posOpening, actor.placement, true);
+        // if the sprite is pipe check if went past the player
+        if(["pipe"].includes(sprite.getType())) {
+            if(sprite.scored === false && sprite.posOpening.x + sprite.size.x + 3 < player.pos.x) {
+                sprite = new Pipe(sprite.posOpening, sprite.placement, true);
                 // increment current score
                 newScores.current[0]+= .5;
                 if(newScores.current[0] === 10) {
@@ -414,7 +424,7 @@ State.prototype.update = function(time) {
             }
         }
 
-        return actor;
+        return sprite;
     });
 
     if(this.status === "game") {
@@ -434,8 +444,8 @@ State.prototype.update = function(time) {
             newY = Math.min(newY, canvasHeight - 112 - limitY);
             newY = Math.max(newY, limitY + upperGroundY);
 
-            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "top", false));
-            actors.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom", false));
+            sprites.push(new Pipe(new Vec(canvasWidth + 100, newY), "top", false));
+            sprites.push(new Pipe(new Vec(canvasWidth + 100, newY), "bottom", false));
 
             pipeSpawn.lastY = newY;
             pipeSpawn.countDown = 1.7;
@@ -449,13 +459,15 @@ State.prototype.update = function(time) {
                actor1.pos.y < actor2.pos.y + actor2.size.y;
     }
 
-    for (let actor of actors) {
-        if (actor != player && overlap(actor, player)) {
-            status = "score";
+    for (let sprite of sprites) {
+        if(sprite.checkCollideWithPlayer) {
+            if (sprite != player && overlap(sprite, player)) {
+                status = "score";
+            }
         }
     }
 
-    return new State(status, backgrounds, actors, pipeSpawn, newScores);
+    return new State(status, sprites, pipeSpawn, newScores);
 };
 
 
@@ -480,32 +492,16 @@ var CanvasDisplay = class CanvasDisplay {
     }
 }
 
-CanvasDisplay.prototype.drawActors = function(actors) {
-    for (let actor of actors) {
-        if(actor.display) {
-            if(["pipe"].includes(actor.getType())) {
-                actor.draw(this.cx);
+CanvasDisplay.prototype.drawSprites = function(sprites) {
+    for (let sprite of sprites) {
+        if(sprite.display) {
+            if(["pipe", "scoreboard", "score"].includes(sprite.getType())) {
+                sprite.draw(this.cx);
             } else {
                 this.cx.drawImage(
-                    actor.srcImage,
-                    actor.posOnSrc.x, actor.posOnSrc.y, actor.sizeOnSrc.x, actor.sizeOnSrc.y,
-                    actor.pos.x, actor.pos.y, actor.size.x, actor.size.y
-                );
-            }
-        }
-    }
-};
-
-CanvasDisplay.prototype.drawBackground = function(backgrounds) {
-    for (let bg of backgrounds) {
-        if(bg.display) {
-            if(["scoreboard", "score"].includes(bg.getType())) {
-                bg.draw(this.cx);
-            } else {
-                this.cx.drawImage(
-                    bg.srcImage,
-                    bg.posOnSrc.x, bg.posOnSrc.y, bg.sizeOnSrc.x, bg.sizeOnSrc.y,
-                    bg.pos.x, bg.pos.y, bg.size.x, bg.size.y
+                    sprite.srcImage,
+                    sprite.posOnSrc.x, sprite.posOnSrc.y, sprite.sizeOnSrc.x, sprite.sizeOnSrc.y,
+                    sprite.pos.x, sprite.pos.y, sprite.size.x, sprite.size.y
                 );
             }
         }
@@ -519,8 +515,7 @@ CanvasDisplay.prototype.clearDisplay = function(status) {
 
 CanvasDisplay.prototype.syncState = function(state) {
     this.clearDisplay(state.status);
-    this.drawBackground(state.backgrounds);
-    this.drawActors(state.actors);
+    this.drawSprites(state.sprites);
 };
 
 
@@ -528,7 +523,7 @@ CanvasDisplay.prototype.syncState = function(state) {
 // the Actor class. for now I will be using this for all ingame objects and will separate them later on if there is a need to separate them
 
 var Actor = class Actor {
-    constructor(srcImage, posOnSrc, sizeOnSrc, pos, size, displayCondition, state) {
+    constructor(srcImage, posOnSrc, sizeOnSrc, pos, size, displayCondition, state, zIndex) {
         this.srcImage = srcImage;
 
         this.posOnSrc = posOnSrc;
@@ -538,7 +533,8 @@ var Actor = class Actor {
         this.size = size;
 
         this.displayCondition = displayCondition;
-        this.display = displayCondition(state);    
+        this.display = displayCondition(state);
+        this.zIndex = (zIndex === undefined) ? this.zIndex : zIndex;
     }
 }
 
@@ -550,6 +546,7 @@ Actor.prototype.getType = function() {
     return "actor";
 }
 
+Actor.prototype.zIndex = 8;
 Actor.prototype.size = new Vec(1, 1);
 
 
@@ -576,14 +573,14 @@ function onpress(event) {
             pipeSpawn.countDown = .3;
             pipeSpawn.lastY = Math.floor((canvasHeight - 112) / 2);
             clicked = true;
-            state = new State("game", state.backgrounds, state.actors, pipeSpawn, state.scores);
+            state = new State("game", state.sprites, pipeSpawn, state.scores);
         break;
         case "game":
             clicked = true;
-            state = new State(state.status, state.backgrounds, state.actors, state.pipeSpawn, state.scores);
+            state = new State(state.status, state.sprites, state.pipeSpawn, state.scores);
         break;
         case "score":
-            state = new State("splash", state.backgrounds, state.actors, state.pipeSpawn, {best: state.scores.best, current: [0, 0, 0]});
+            state = new State("splash", state.sprites, state.pipeSpawn, {best: state.scores.best, current: [0, 0, 0]});
         break;
     }
 }
@@ -597,35 +594,35 @@ function runGame(Display) {
 
     // BACKGROUND IMAGES
     // ground
-    state.backgrounds.push(new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98), function() { return true; }, state));
+    state.sprites.push(new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98), function() { return true; }, state));
     // city
-    state.backgrounds.push(new City(new Vec(0, canvasHeight - 232))); // city bg
-    state.backgrounds.push(new City(new Vec(275, canvasHeight - 232))); // city bg
-    state.backgrounds.push(new City(new Vec(550, canvasHeight - 232))); // city bg
+    state.sprites.push(new City(new Vec(0, canvasHeight - 232))); // city bg
+    state.sprites.push(new City(new Vec(275, canvasHeight - 232))); // city bg
+    state.sprites.push(new City(new Vec(550, canvasHeight - 232))); // city bg
     // get ready
-    state.backgrounds.push(new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44), function(state) { return state.status === "splash"; }, state));
+    state.sprites.push(new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44), function(state) { return state.status === "splash"; }, state));
     // instruction
-    state.backgrounds.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
+    state.sprites.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
     // scoreboard
-    state.backgrounds.push(new ScoreBoard(state));
+    state.sprites.push(new ScoreBoard(state));
     // score
-    state.backgrounds.push(new Score(new Vec(167, 20), state.scores.current));
+    state.sprites.push(new Score(new Vec(167, 20), state.scores.current));
     // game over
-    state.backgrounds.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
+    state.sprites.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
     // TODO
     //state.backgrounds.push(currentScore);
 
     // PLAYER AND OTHER ACTORS
     // floor
-    state.actors.push(new Floor(new Vec(0, canvasHeight - 112)));
-    state.actors.push(new Floor(new Vec(224, canvasHeight - 112)));
-    state.actors.push(new Floor(new Vec(448, canvasHeight - 112)));
+    state.sprites.push(new Floor(new Vec(0, canvasHeight - 112)));
+    state.sprites.push(new Floor(new Vec(224, canvasHeight - 112)));
+    state.sprites.push(new Floor(new Vec(448, canvasHeight - 112)));
     // ceiling
-    state.actors.push(new Floor(new Vec(0, 0)));
-    state.actors.push(new Floor(new Vec(224, 0)));
-    state.actors.push(new Floor(new Vec(448, 0)));
+    state.sprites.push(new Floor(new Vec(0, 0)));
+    state.sprites.push(new Floor(new Vec(224, 0)));
+    state.sprites.push(new Floor(new Vec(448, 0)));
     // player
-    state.actors.push(Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12)));    
+    state.sprites.push(Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12)));
 
     runAnimation(time => {
     
