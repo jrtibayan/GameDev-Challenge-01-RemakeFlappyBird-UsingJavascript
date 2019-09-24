@@ -16,7 +16,7 @@
  *     13. << DONE >> Acquire points during game state
  *     14. << DONE >> Display current and highest score during score state
  *     15. << DONE >> Change state to flash if clicked during score state
- *     16. Reset game to play again after clicking while on score state
+ *     16. << DONE >> Reset game to play again after clicking while on score state
  */
 
 
@@ -390,8 +390,47 @@ var State = class State {
         this.scores = scores;
     }  
 
-    static start() {
-        return new State("splash", [], Object.create(null), {best: [0, 0, 0], current: [0, 0, 0]});
+    static start(bestScore) {
+        let state = Object.create(null);
+        state.status = "splash";
+        state.sprites = [];
+        state.pipeSpawn = Object.create(null);
+        state.scores = {
+            best: (bestScore === undefined) ? [0, 0, 0] : bestScore, 
+            current: [0, 0, 0]
+        };
+        
+        // BACKGROUND IMAGES
+        // ground
+        state.sprites.push(new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98), function() { return true; }, state));
+        // city
+        state.sprites.push(new City(new Vec(0, canvasHeight - 232))); // city bg
+        state.sprites.push(new City(new Vec(275, canvasHeight - 232))); // city bg
+        state.sprites.push(new City(new Vec(550, canvasHeight - 232))); // city bg
+        // get ready
+        state.sprites.push(new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44), function(state) { return state.status === "splash"; }, state));
+        // instruction
+        state.sprites.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
+        // scoreboard
+        state.sprites.push(new ScoreBoard(state));
+        // score
+        state.sprites.push(new Score(new Vec(167, 20), state.scores.current));
+        // game over
+        state.sprites.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
+
+        // PLAYER AND OTHER ACTORS
+        // floor
+        state.sprites.push(new Floor(new Vec(0, canvasHeight - 112)));
+        state.sprites.push(new Floor(new Vec(224, canvasHeight - 112)));
+        state.sprites.push(new Floor(new Vec(448, canvasHeight - 112)));
+        // ceiling
+        state.sprites.push(new Floor(new Vec(0, 0)));
+        state.sprites.push(new Floor(new Vec(224, 0)));
+        state.sprites.push(new Floor(new Vec(448, 0)));
+        // player
+        state.sprites.push(Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12)));
+
+        return new State(state.status, state.sprites, state.pipeSpawn, state.scores);
     }
 
 }
@@ -596,7 +635,7 @@ function onpress(event) {
             state = new State(state.status, state.sprites, state.pipeSpawn, state.scores);
         break;
         case "score":
-            state = new State("splash", state.sprites, state.pipeSpawn, {best: state.scores.best, current: [0, 0, 0]});
+            state = State.start(state.scores.best);
         break;
     }
 }
@@ -607,38 +646,6 @@ function runGame(Display) {
     let display = new Display(document.body);
     state = State.start();
     window.addEventListener("mousedown", onpress);
-
-    // BACKGROUND IMAGES
-    // ground
-    state.sprites.push(new Actor(images, new Vec(276, 14), new Vec(224, 98), new Vec(0, canvasHeight - 98), new Vec(canvasWidth, 98), function() { return true; }, state));
-    // city
-    state.sprites.push(new City(new Vec(0, canvasHeight - 232))); // city bg
-    state.sprites.push(new City(new Vec(275, canvasHeight - 232))); // city bg
-    state.sprites.push(new City(new Vec(550, canvasHeight - 232))); // city bg
-    // get ready
-    state.sprites.push(new Actor(images, new Vec(118, 310), new Vec(174, 44), new Vec(Math.floor(canvasWidth / 2) - 87, canvasHeight / 5), new Vec(174, 44), function(state) { return state.status === "splash"; }, state));
-    // instruction
-    state.sprites.push(new Actor(images, new Vec(0, 228), new Vec(118, 120), new Vec(Math.floor(canvasWidth / 2) - 60,(canvasHeight / 5) + 66), new Vec(118, 120), function(state) { return state.status === "splash"; }, state));
-    // scoreboard
-    state.sprites.push(new ScoreBoard(state));
-    // score
-    state.sprites.push(new Score(new Vec(167, 20), state.scores.current));
-    // game over
-    state.sprites.push(new Actor(images, new Vec(118, 272), new Vec(188, 38), new Vec(Math.floor(canvasWidth / 2) - 94, 96), new Vec(188, 38), function(state) { return state.status === "score"; }, state));
-    // TODO
-    //state.backgrounds.push(currentScore);
-
-    // PLAYER AND OTHER ACTORS
-    // floor
-    state.sprites.push(new Floor(new Vec(0, canvasHeight - 112)));
-    state.sprites.push(new Floor(new Vec(224, canvasHeight - 112)));
-    state.sprites.push(new Floor(new Vec(448, canvasHeight - 112)));
-    // ceiling
-    state.sprites.push(new Floor(new Vec(0, 0)));
-    state.sprites.push(new Floor(new Vec(224, 0)));
-    state.sprites.push(new Floor(new Vec(448, 0)));
-    // player
-    state.sprites.push(Bird.create(new Vec(Math.floor(canvasWidth / 8), Math.floor((canvasHeight - 112) / 2) - 12)));
 
     runAnimation(time => {
     
