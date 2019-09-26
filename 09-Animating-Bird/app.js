@@ -17,8 +17,8 @@
  *     14. << DONE >> Display current and highest score during score state
  *     15. << DONE >> Change state to flash if clicked during score state
  *     16. << DONE >> Reset game to play again after clicking while on score state
- *     17. Bird animation on Splash state
- *     18. Bird animation on Game state
+ *     17. << DONE >> Bird animation on Splash state
+ *     18. << DONE >> Bird animation on Game state
  */
 
 
@@ -336,6 +336,7 @@ var Bird = class Bird {
     constructor(pos, speed) {
         this.pos = pos;
         this.speed = speed;
+        this.rotation = 0;
     }
     static create(pos) {
         return new Bird(pos, new Vec(0, 0));
@@ -362,9 +363,16 @@ Bird.prototype.jump = function() {
 Bird.prototype.update = function(time) {
     let pos = this.pos;
     let speed = this.speed;
+    let newBird = new Bird(pos, speed);
+    let rotation = this.rotation;
+
+    if(state.status === "splash") {
+        rotation = 0;
+        pos = new Vec(Math.floor(canvasWidth / 8), (Math.floor((canvasHeight - 112) / 2) - 12) + Math.floor(Math.cos(((Date.now() / 30) % 100)/4)));
+    }
 
     if(state.status != "score") {
-        
+        newBird.posOnSrc.y = 230 + ((Math.floor(Date.now() / 200) % 3) * 26);
     }
 
     if(state.status != "splash") {
@@ -378,9 +386,31 @@ Bird.prototype.update = function(time) {
         pos = pos.plus(speed.times(time));
         pos.y = Math.min(pos.y, canvasHeight - this.size.y - 108);
         pos.y = Math.max(pos.y, 7);
+
+        if(speed.y > 0) rotation = 0.5;
+        else rotation = -0.3;
     }
+
+    newBird.rotation = rotation;
+    newBird.pos = pos;
+    newBird.speed = speed;
     
-    return new Bird(pos, speed);
+    return newBird;
+}
+
+Bird.prototype.draw = function(cx) {
+    cx.save();
+
+    cx.translate(this.pos.x, this.pos.y);
+    cx.rotate(this.rotation);
+
+    cx.drawImage(
+        this.srcImage,
+        this.posOnSrc.x, this.posOnSrc.y, this.sizeOnSrc.x, this.sizeOnSrc.y,
+        (this.rotation > 0) ? 4 : -4, (this.rotation > 0) ? -8 : 4, this.size.x, this.size.y
+    );
+
+    cx.restore();
 }
 
 
@@ -556,7 +586,7 @@ var CanvasDisplay = class CanvasDisplay {
 CanvasDisplay.prototype.drawSprites = function(sprites) {
     for (let sprite of sprites) {
         if(sprite.display) {
-            if(["pipe", "scoreboard", "score"].includes(sprite.getType())) {
+            if(["pipe", "scoreboard", "score", "bird"].includes(sprite.getType())) {
                 sprite.draw(this.cx);
             } else {
                 this.cx.drawImage(
