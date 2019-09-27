@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Remake Flappy Bird for Game Dev Practice</title>
+
+        <meta charset="utf-8" />
+        <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        
+        <style type="text/css">
+        
+            body {
+                color: #efefef;
+                background-color: #000;
+                margin: 0;
+                padding: 0;
+                font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            }
+
+            div.center-align  {
+                text-align: center;
+            }
+            
+            iframe {
+                border: none;
+                width: 100%;
+                height: 90vh;
+            }    
+  
+            ol{
+                margin: 5vh auto 0;
+                max-width: 320px;
+            }
+
+            li, a, a:link, a:visited, a:active {
+                color: #f0f0f2;
+            }
+
+        </style>   
+
+    </head>
+
+    <body>
+        
+        <ol>
+            <li><a href="javascript:void(0)" onclick="go('01-Splash-Screen/index.html')">Draw Splash Screen</a></li>
+            <li><a href="javascript:void(0)" onclick="go('02-Listen-for-Clicks/index.html')">Listen for Clicks</a></li>
+            <li><a href="javascript:void(0)" onclick="go('03-Moving-Background/index.html')">Scrolling Floor and City</a></li>
+            <li><a href="javascript:void(0)" onclick="go('04-Jumping-Falling-Bird/index.html')">Making Bird Jump and Fall</a></li>
+            <li><a href="javascript:void(0)" onclick="go('05-Scrolling-Pipes/index.html')">Generate and Scroll Pipes</a></li>
+            <li><a href="javascript:void(0)" onclick="go('06-Die-on-Collide/index.html')">Bird Dies on Collide</a></li>
+            <li><a href="javascript:void(0)" onclick="go('07-Displaying-Score/index.html')">Earning and Displaying Score</a></li>
+            <li><a href="javascript:void(0)" onclick="go('08-Restarting-Game/index.html')">Restart the Game</a></li>
+            <li><a href="javascript:void(0)" onclick="go('09-Animating-Bird/index.html')">Animate the Bird</a></li>
+        </ol>
+        
+        
+        <div class="center-align">
+            <iframe id="iFramePatients" src="../01-Splash-Screen/index.html"></iframe>
+        </div>
+
+        <script>
+
+            function go(loc) {
+
+                // change the source of the iframe
+                // this allows the viewer to view different result of each commit
+                document.getElementById('iFramePatients').src = loc;
+
+                // after selecting from the ordered list,
+                // pressing arrow key wont work because 
+                // the focus needs to be on the iframe for it it receive the input
+                document.getElementById("iFramePatients").focus();
+
+            }
+
+        </script>
+
+    </body>
+</html>
